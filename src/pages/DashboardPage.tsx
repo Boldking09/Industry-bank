@@ -2,12 +2,80 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getSpendingTrend } from "../data/seed";
 import {
+  formatAccountNumber,
   formatCurrency,
   formatDate,
+  formatRoutingNumber,
   formatSignedCurrency,
 } from "../lib/format";
 import { useAuth } from "../state/AuthContext";
 import { useBank } from "../state/BankContext";
+
+function AccountKindIcon({ kind }: { kind: string }) {
+  if (kind === "savings") {
+    return (
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
+        <path
+          d="M3 8.2 10 4l7 4.2M4.3 8.2h11.4M5.2 8.2v6.3M8.4 8.2v6.3M11.6 8.2v6.3M14.8 8.2v6.3M3.4 14.5h13.2M2.8 16.2h14.4"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  if (kind === "credit") {
+    return (
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
+        <rect x="2.4" y="4.6" width="15.2" height="10.8" rx="2" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M2.4 8.4h15.2" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M5.4 12.4h3.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
+      <path
+        d="M3 8.4 10 4.2l7 4.2M4.4 8.4v6.2M8 8.4v6.2M12 8.4v6.2M15.6 8.4v6.2M2.8 14.6h14.4M2.4 16.3h15.2"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function HashIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="13" height="13" fill="none" aria-hidden="true">
+      <path
+        d="M7.2 3.4 5.8 16.6M12.6 3.4l-1.4 13.2M3.8 7.4h12.4M3.2 12.6h12.4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function RouteIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="13" height="13" fill="none" aria-hidden="true">
+      <circle cx="6" cy="5" r="2" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="14" cy="15" r="2" stroke="currentColor" strokeWidth="1.4" />
+      <path
+        d="M8 5h4.2a2 2 0 0 1 2 2v1.4a2 2 0 0 1-2 2H7.8a2 2 0 0 0-2 2V13"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
 function greetingForHour(hour: number): string {
   if (hour < 12) {
@@ -84,19 +152,69 @@ export default function DashboardPage() {
           </section>
 
           <section className="accounts" aria-label="Accounts">
-            {accounts.map((account) => (
-              <article key={account.id} className="card account">
-                <div className="account__top">
-                  <span className={`dot dot--${account.kind}`} aria-hidden="true" />
-                  <span className="account__name">{account.name}</span>
-                  <span className="account__mask">••{account.mask}</span>
-                </div>
-                <p className="account__balance">{formatCurrency(account.balanceCents)}</p>
-                <p className="account__label">
-                  {account.kind === "credit" ? "Current balance" : "Available balance"}
-                </p>
-              </article>
-            ))}
+            {accounts.map((account) => {
+              const isChecking = account.kind === "checking";
+              return (
+                <article
+                  key={account.id}
+                  className={
+                    isChecking
+                      ? "card account account--checking"
+                      : "card account"
+                  }
+                >
+                  <div className="account__top">
+                    <span
+                      className={`account__icon account__icon--${account.kind}`}
+                      aria-hidden="true"
+                    >
+                      <AccountKindIcon kind={account.kind} />
+                    </span>
+                    <span className="account__name">{account.name}</span>
+                    <span className="account__mask">••{account.mask}</span>
+                  </div>
+                  <p className="account__balance">
+                    {formatCurrency(account.balanceCents)}
+                  </p>
+                  <p className="account__label">
+                    {account.kind === "credit"
+                      ? "Current balance"
+                      : "Available balance"}
+                  </p>
+                  {isChecking && account.accountNumber ? (
+                    <div
+                      className="account__receive"
+                      aria-label="Details for receiving money"
+                    >
+                      <div className="account__receive-head">
+                        <span>Direct deposit details</span>
+                        <Link to="/profile" className="account__receive-link">
+                          Manage
+                        </Link>
+                      </div>
+                      <div className="account__receive-grid">
+                        <div className="account__receive-item">
+                          <span className="account__receive-label">
+                            <HashIcon /> Account number
+                          </span>
+                          <span className="account__receive-value">
+                            {formatAccountNumber(account.accountNumber)}
+                          </span>
+                        </div>
+                        <div className="account__receive-item">
+                          <span className="account__receive-label">
+                            <RouteIcon /> Routing number
+                          </span>
+                          <span className="account__receive-value">
+                            {formatRoutingNumber(account.routingNumber)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
           </section>
 
           <section id="activity" className="card card--pad">
@@ -155,7 +273,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 className="quick__btn"
-                onClick={() => setNotice("Deposits are disabled in this demo.")}
+                onClick={() => setNotice("Deposits are currently unavailable.")}
               >
                 <span className="quick__icon" aria-hidden="true">
                   +
@@ -165,7 +283,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 className="quick__btn"
-                onClick={() => setNotice("Bill pay is disabled in this demo.")}
+                onClick={() => setNotice("Bill pay is currently unavailable.")}
               >
                 <span className="quick__icon" aria-hidden="true">
                   ✓
@@ -225,11 +343,12 @@ export default function DashboardPage() {
 
           <section className="card card--pad">
             <div className="section-head">
-              <h2 className="section-title">Demo mode</h2>
+              <h2 className="section-title">Live data</h2>
             </div>
             <p className="side-note">
-              Balances and activity are stored locally in your browser. Sending a
-              transfer updates the mock data and can be reset by clearing site data.
+              Balances and activity live in your Supabase database and update live
+              across devices. Sending a transfer moves real rows between accounts, so
+              a second signed-in person sees the change instantly.
             </p>
           </section>
         </aside>

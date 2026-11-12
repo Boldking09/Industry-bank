@@ -1,5 +1,5 @@
-import { useMemo, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { formatCurrency, parseAmountToCents } from "../lib/format";
 import { useBank } from "../state/BankContext";
 
@@ -8,12 +8,18 @@ type Step = "form" | "review" | "done";
 interface FormErrors {
   fromAccountId?: string;
   recipient?: string;
+  recipientAccountNumber?: string;
+  routingNumber?: string;
   amount?: string;
 }
+
+const ACCOUNT_NUMBER_PATTERN = /^\d{10}$/;
+const ROUTING_NUMBER_PATTERN = /^\d{9}$/;
 
 interface Receipt {
   amountCents: number;
   recipient: string;
+  recipientAccountNumber: string;
   fromLabel: string;
   newBalanceCents: number;
 }
@@ -29,6 +35,7 @@ function stepIndex(step: Step): number {
 }
 
 export default function TransferPage() {
+  const navigate = useNavigate();
   const { accounts, transfer } = useBank();
   const eligible = useMemo(
     () => accounts.filter((account) => account.kind !== "credit"),
@@ -38,16 +45,32 @@ export default function TransferPage() {
   const [step, setStep] = useState<Step>("form");
   const [fromAccountId, setFromAccountId] = useState(eligible[0]?.id ?? "");
   const [recipient, setRecipient] = useState("");
-  const [recipientAccount, setRecipientAccount] = useState("");
+  const [recipientAccountNumber, setRecipientAccountNumber] = useState("");
+  const [routingNumber, setRoutingNumber] = useState("");
   const [amount, setAmount] = useState("");
   const [memo, setMemo] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [confirmation, setConfirmation] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [externalModalOpen, setExternalModalOpen] = useState(false);
 
   const selected = eligible.find((account) => account.id === fromAccountId) ?? eligible[0];
   const amountCents = parseAmountToCents(amount);
   const currentIndex = stepIndex(step);
+
+  useEffect(() => {
+    if (!externalModalOpen) {
+      return;
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setExternalModalOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [externalModalOpen]);
 
   function handleContinue(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -58,6 +81,18 @@ export default function TransferPage() {
     }
     if (!recipient.trim()) {
       next.recipient = "Enter the recipient's name.";
+    }
+    const accountNumber = recipientAccountNumber.replace(/\D/g, "");
+    if (!accountNumber) {
+      next.recipientAccountNumber = "Enter the recipient's account number.";
+    } else if (!ACCOUNT_NUMBER_PATTERN.test(accountNumber)) {
+      next.recipientAccountNumber = "Enter a valid 10-digit account number.";
+    }
+    const routing = routingNumber.replace(/\D/g, "");
+    if (!routing) {
+      next.routingNumber = "Enter the recipient's routing number.";
+    } else if (!ROUTING_NUMBER_PATTERN.test(routing)) {
+      next.routingNumber = "Enter a valid 9-digit routing number.";
     }
     if (amountCents === null || amountCents <= 0) {
       next.amount = "Enter an amount like 125.00.";
@@ -71,19 +106,39 @@ export default function TransferPage() {
     }
   }
 
-  function handleConfirm() {
-    if (!selected || amountCents === null) {
+  async function handleConfirm() {
+    if (!selected || amountCents === null || submitting) {
       return;
     }
 
-    const result = transfer({
+    const accountNumber = recipientAccountNumber.replace(/\D/g, "");
+    if (!ACCOUNT_NUMBER_PATTERN.test(accountNumber)) {
+      setExternalModalOpen(true);
+      return;
+    }
+
+    const routing = routingNumber.replace(/\D/g, "");
+    if (!ROUTING_NUMBER_PATTERN.test(routing)) {
+      setErrors({ routingNumber: "Enter a valid 9-digit routing number." });
+      setStep("form");
+      return;
+    }
+
+    setSubmitting(true);
+    const result = await transfer({
       fromAccountId: selected.id,
       recipient: recipient.trim(),
+      recipientAccountNumber: accountNumber,
       amountCents,
       memo: memo.trim(),
     });
+    setSubmitting(false);
 
     if (!result.ok || !result.confirmation) {
+      if (result.reason === "external-account") {
+        setExternalModalOpen(true);
+        return;
+      }
       setErrors({ amount: result.error ?? "Something went wrong. Try again." });
       setStep("form");
       return;
@@ -92,6 +147,7 @@ export default function TransferPage() {
     setReceipt({
       amountCents,
       recipient: recipient.trim(),
+      recipientAccountNumber: accountNumber,
       fromLabel: `${selected.name} ••${selected.mask}`,
       newBalanceCents: selected.balanceCents - amountCents,
     });
@@ -102,12 +158,14 @@ export default function TransferPage() {
   function handleReset() {
     setStep("form");
     setRecipient("");
-    setRecipientAccount("");
+    setRecipientAccountNumber("");
+    setRoutingNumber("");
     setAmount("");
     setMemo("");
     setErrors({});
     setReceipt(null);
     setConfirmation("");
+    setSubmitting(false);
     setFromAccountId(eligible[0]?.id ?? "");
   }
 
@@ -118,8 +176,8 @@ export default function TransferPage() {
           <p className="greeting">Move money</p>
           <h1 className="page__title">Send money</h1>
           <p className="page__sub">
-            Transfer between your accounts or send to someone else. This is a
-            simulated flow, so nothing leaves your browser.
+            Send money to another Industry Bank customer using their account
+            number. Balances update live on both dashboards.
           </p>
         </div>
       </header>
@@ -193,19 +251,69 @@ export default function TransferPage() {
               </div>
 
               <div className="field">
-                <label className="field__label" htmlFor="recipient-account">
-                  Recipient account <span className="field__optional">(optional)</span>
+                <label className="field__label" htmlFor="recipient-account-number">
+                  Recipient account number
                 </label>
                 <input
-                  id="recipient-account"
+                  id="recipient-account-number"
                   className="input"
                   type="text"
                   inputMode="numeric"
-                  placeholder="Account or routing number"
-                  value={recipientAccount}
-                  onChange={(event) => setRecipientAccount(event.target.value)}
+                  autoComplete="off"
+                  placeholder="1234567890"
+                  maxLength={10}
+                  value={recipientAccountNumber}
+                  onChange={(event) => {
+                    setRecipientAccountNumber(
+                      event.target.value.replace(/\D/g, "").slice(0, 10),
+                    );
+                    setErrors((previous) => ({
+                      ...previous,
+                      recipientAccountNumber: undefined,
+                    }));
+                  }}
+                  aria-invalid={errors.recipientAccountNumber ? "true" : undefined}
+                  aria-describedby="recipient-account-number-hint"
                 />
+                <p className="field__hint" id="recipient-account-number-hint">
+                  10 digits, no spaces.
+                </p>
+                {errors.recipientAccountNumber ? (
+                  <p className="field__error" role="alert">
+                    {errors.recipientAccountNumber}
+                  </p>
+                ) : null}
               </div>
+            </div>
+
+            <div className="field">
+              <label className="field__label" htmlFor="routing-number">
+                Routing number
+              </label>
+              <input
+                id="routing-number"
+                className="input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="021000021"
+                maxLength={9}
+                value={routingNumber}
+                onChange={(event) => {
+                  setRoutingNumber(event.target.value.replace(/\D/g, "").slice(0, 9));
+                  setErrors((previous) => ({ ...previous, routingNumber: undefined }));
+                }}
+                aria-invalid={errors.routingNumber ? "true" : undefined}
+                aria-describedby="routing-number-hint"
+              />
+              <p className="field__hint" id="routing-number-hint">
+                9 digits, no spaces.
+              </p>
+              {errors.routingNumber ? (
+                <p className="field__error" role="alert">
+                  {errors.routingNumber}
+                </p>
+              ) : null}
             </div>
 
             <div className="form-row">
@@ -285,12 +393,14 @@ export default function TransferPage() {
               <dt>To</dt>
               <dd>{recipient.trim()}</dd>
             </div>
-            {recipientAccount.trim() ? (
-              <div>
-                <dt>Recipient account</dt>
-                <dd>{recipientAccount.trim()}</dd>
-              </div>
-            ) : null}
+            <div>
+              <dt>Recipient account</dt>
+              <dd>{recipientAccountNumber.replace(/\D/g, "")}</dd>
+            </div>
+            <div>
+              <dt>Routing number</dt>
+              <dd>{routingNumber}</dd>
+            </div>
             <div>
               <dt>Amount</dt>
               <dd className="review__amount">{formatCurrency(amountCents)}</dd>
@@ -309,8 +419,13 @@ export default function TransferPage() {
             <button type="button" className="btn btn--ghost" onClick={() => setStep("form")}>
               Back
             </button>
-            <button type="button" className="btn btn--primary" onClick={handleConfirm}>
-              Confirm transfer
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={handleConfirm}
+              disabled={submitting}
+            >
+              {submitting ? "Sending…" : "Confirm transfer"}
             </button>
           </div>
         </section>
@@ -327,7 +442,8 @@ export default function TransferPage() {
             <h2 className="page__title">Transfer complete</h2>
             <p className="success__amount">{formatCurrency(receipt.amountCents)}</p>
             <p className="section-sub">
-              Sent to {receipt.recipient} from {receipt.fromLabel}.
+              Sent to {receipt.recipient} · Account {receipt.recipientAccountNumber} from{" "}
+              {receipt.fromLabel}.
             </p>
             <p className="success__ref">Confirmation {confirmation}</p>
             <p className="field__hint">
@@ -343,6 +459,43 @@ export default function TransferPage() {
             </div>
           </div>
         </section>
+      ) : null}
+
+      {externalModalOpen ? (
+        <div
+          className="modal"
+          role="presentation"
+          onClick={() => setExternalModalOpen(false)}
+        >
+          <div
+            className="modal__panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="external-transfer-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <span className="modal__icon" aria-hidden="true">
+              !
+            </span>
+            <h2 className="modal__title" id="external-transfer-title">
+              Transfer failed
+            </h2>
+            <p className="modal__body">
+              Transfer failed. Your transfer is pending and waiting to send.
+              Please contact support for help.
+            </p>
+            <button
+              type="button"
+              className="btn btn--primary btn--block"
+              onClick={() => {
+                setExternalModalOpen(false);
+                navigate("/support");
+              }}
+            >
+              Contact Support
+            </button>
+          </div>
+        </div>
       ) : null}
     </div>
   );

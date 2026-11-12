@@ -17,6 +17,21 @@ export function formatDate(iso: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+export function formatAccountNumber(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  return digits.replace(/(.{4})/g, "$1 ").trim();
+}
+
+export function formatRoutingNumber(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  return digits.replace(/(.{3})(?=.)/g, "$1 ");
+}
+
+export function maskNumber(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  return `•••• •••• ${digits.slice(-4)}`;
+}
+
 export function parseAmountToCents(value: string): number | null {
   const cleaned = value.replace(/[$,\s]/g, "");
   if (!/^\d+(\.\d{0,2})?$/.test(cleaned)) {

@@ -1,0 +1,561 @@
+.ib-auth {
+  --ib-navy-950: #04101f;
+  --ib-navy-900: #061626;
+  --ib-navy-800: #0b2947;
+  --ib-blue-700: #0f56b3;
+  --ib-blue-600: #1466c9;
+  --ib-blue-500: #2a7fe0;
+  --ib-gold: #c9a962;
+  --ib-gold-soft: #e6d5a4;
+  --ib-ink: #0a1a2b;
+  --ib-muted: #5d6f83;
+  --ib-line: #e3e9f1;
+  --ib-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+    Georgia, "Times New Roman", serif;
+
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  background: #f4f7fb;
+  color: var(--ib-ink);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Brand panel                                                                */
+/* -------------------------------------------------------------------------- */
+
+.ib-auth__brand-panel {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 44px;
+  padding: clamp(30px, 5vw, 72px);
+  color: #fff;
+  background:
+    radial-gradient(900px 560px at 12% -12%, rgba(42, 127, 224, 0.34), transparent 62%),
+    radial-gradient(760px 520px at 112% 112%, rgba(201, 169, 98, 0.16), transparent 60%),
+    linear-gradient(155deg, var(--ib-navy-950) 0%, var(--ib-navy-900) 46%, #0a2a4a 100%);
+}
+
+.ib-auth__brand-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 68px 68px;
+  -webkit-mask-image: radial-gradient(circle at 28% 18%, #000 0%, transparent 78%);
+  mask-image: radial-gradient(circle at 28% 18%, #000 0%, transparent 78%);
+  pointer-events: none;
+}
+
+.ib-auth__brand-panel::after {
+  content: "";
+  position: absolute;
+  right: -280px;
+  bottom: -320px;
+  width: 660px;
+  height: 660px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 0 0 70px rgba(255, 255, 255, 0.035),
+    0 0 0 150px rgba(255, 255, 255, 0.02);
+  pointer-events: none;
+}
+
+.ib-auth__brand-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.ib-auth__brand-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.ib-auth .brand__mark {
+  background: linear-gradient(140deg, #efe2b8, var(--ib-gold));
+  color: var(--ib-navy-900);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 6px 16px -8px rgba(0, 0, 0, 0.6);
+}
+
+.ib-auth .brand__text {
+  color: #fff;
+  letter-spacing: 0.01em;
+}
+
+.ib-auth .brand__text span {
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.ib-auth__secure {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ib-auth__secure svg {
+  color: var(--ib-gold-soft);
+}
+
+.ib-auth__brand-copy {
+  max-width: 34rem;
+}
+
+.ib-auth__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: var(--ib-gold-soft);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.ib-auth__eyebrow::before {
+  content: "";
+  width: 30px;
+  height: 1px;
+  background: rgba(201, 169, 98, 0.7);
+}
+
+.ib-auth__headline {
+  margin: 22px 0 0;
+  max-width: 21ch;
+  font-family: var(--ib-serif);
+  font-weight: 500;
+  font-size: clamp(2.05rem, 3.6vw, 3.35rem);
+  line-height: 1.08;
+  letter-spacing: -0.012em;
+  color: #fff;
+  text-wrap: balance;
+}
+
+.ib-auth__lede {
+  margin: 22px 0 0;
+  max-width: 46ch;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 15.5px;
+  line-height: 1.7;
+}
+
+.ib-auth__points {
+  margin: 34px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 15px;
+}
+
+.ib-auth__point {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 14.5px;
+  line-height: 1.4;
+}
+
+.ib-auth__point-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1px solid rgba(201, 169, 98, 0.34);
+  background: rgba(201, 169, 98, 0.14);
+  color: var(--ib-gold-soft);
+}
+
+.ib-auth__brand-foot {
+  display: grid;
+  gap: 18px;
+}
+
+.ib-auth__trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+}
+
+.ib-auth__trust-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.ib-auth__trust-item svg {
+  color: rgba(201, 169, 98, 0.85);
+}
+
+.ib-auth__legal {
+  margin: 0;
+  max-width: 52ch;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Form panel                                                                 */
+/* -------------------------------------------------------------------------- */
+
+.ib-auth__panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(30px, 5vw, 72px);
+  overflow-y: auto;
+  background:
+    radial-gradient(1100px 620px at 100% 0%, #f6f9fd 0%, transparent 62%),
+    #ffffff;
+}
+
+.ib-auth__form-shell {
+  width: min(440px, 100%);
+}
+
+.ib-auth__form-head {
+  margin-bottom: 28px;
+}
+
+.ib-auth__form-eyebrow {
+  margin: 0;
+  color: var(--ib-blue-600);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.ib-auth__form-title {
+  margin: 12px 0 0;
+  font-family: var(--ib-serif);
+  font-weight: 500;
+  font-size: clamp(1.9rem, 2.6vw, 2.35rem);
+  line-height: 1.12;
+  letter-spacing: -0.012em;
+  color: var(--ib-navy-900);
+}
+
+.ib-auth__form-sub {
+  margin: 10px 0 0;
+  max-width: 42ch;
+  color: var(--ib-muted);
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+
+.ib-auth__form {
+  display: grid;
+  gap: 18px;
+}
+
+.ib-field {
+  display: grid;
+  gap: 7px;
+}
+
+.ib-field__label {
+  color: #33475c;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.ib-field__hint {
+  color: var(--ib-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.ib-field__error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #f6d3cf;
+  border-radius: 10px;
+  background: #fef3f2;
+  color: #b42318;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.ib-input {
+  width: 100%;
+  height: 50px;
+  padding: 0 15px;
+  border: 1px solid #dfe6ef;
+  border-radius: 12px;
+  background: #fbfcfe;
+  color: var(--ib-ink);
+  font-size: 14.5px;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease;
+}
+
+.ib-input::placeholder {
+  color: #9aa8b7;
+}
+
+.ib-input:hover {
+  border-color: #cfdae7;
+}
+
+.ib-input:focus {
+  outline: none;
+  border-color: var(--ib-blue-500);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(42, 127, 224, 0.14);
+}
+
+.ib-input[aria-invalid="true"] {
+  border-color: #e6a6a0;
+}
+
+.ib-input[aria-invalid="true"]:focus {
+  border-color: #b42318;
+  box-shadow: 0 0 0 4px rgba(180, 35, 24, 0.1);
+}
+
+.ib-input--file {
+  height: auto;
+  padding: 9px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ib-input--file::file-selector-button {
+  margin-right: 12px;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 12px;
+  background: #eef4fc;
+  color: var(--ib-navy-800);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.ib-input--file::file-selector-button:hover {
+  background: #e2edfb;
+}
+
+.ib-upload-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.ib-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 0 20px;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.12s ease,
+    opacity 0.18s ease;
+}
+
+.ib-btn--primary {
+  height: 52px;
+  color: #fff;
+  background: linear-gradient(180deg, #10365d 0%, var(--ib-navy-900) 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 16px 30px -16px rgba(6, 22, 38, 0.75);
+}
+
+.ib-btn--primary:hover {
+  background: linear-gradient(180deg, #144269 0%, #081c33 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 20px 34px -16px rgba(6, 22, 38, 0.8);
+}
+
+.ib-btn--primary:active {
+  transform: translateY(1px);
+}
+
+.ib-btn--block {
+  width: 100%;
+}
+
+.ib-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ib-auth__switch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 26px;
+  padding-top: 24px;
+  border-top: 1px solid var(--ib-line);
+  text-align: center;
+}
+
+.ib-auth__switch-title {
+  color: var(--ib-muted);
+  font-size: 13px;
+}
+
+.ib-link-btn {
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: none;
+  padding: 0;
+  color: var(--ib-blue-600);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.ib-link-btn:hover {
+  color: var(--ib-navy-900);
+  border-bottom-color: currentColor;
+}
+
+.ib-auth__fineprint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 26px 0 0;
+  color: #6b7c8e;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+}
+
+.ib-auth__fineprint svg {
+  color: #8593a3;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Responsive                                                                 */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .ib-auth {
+    grid-template-columns: 1fr;
+    min-height: 100svh;
+  }
+
+  .ib-auth__brand-panel {
+    gap: 20px;
+    padding: 26px 22px 30px;
+  }
+
+  .ib-auth__brand-copy {
+    max-width: none;
+  }
+
+  .ib-auth__headline {
+    margin-top: 14px;
+    max-width: 26ch;
+    font-size: clamp(1.5rem, 5.4vw, 2rem);
+  }
+
+  .ib-auth__lede,
+  .ib-auth__points,
+  .ib-auth__brand-foot {
+    display: none;
+  }
+
+  .ib-auth__panel {
+    align-items: flex-start;
+    padding: 34px 22px 44px;
+  }
+
+  .ib-auth__form-shell {
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .ib-auth__brand-panel {
+    padding: 22px 18px 26px;
+  }
+
+  .ib-auth__secure {
+    padding: 6px 10px;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+  }
+
+  .ib-auth__headline {
+    font-size: clamp(1.4rem, 6vw, 1.75rem);
+    max-width: 24ch;
+  }
+
+  .ib-auth__panel {
+    padding: 28px 18px 38px;
+  }
+
+  .ib-auth__form-title {
+    font-size: 1.85rem;
+  }
+
+  .ib-upload-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ib-auth__switch {
+    margin-top: 22px;
+    padding-top: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ib-auth *,
+  .ib-auth *::before,
+  .ib-auth *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

@@ -43,6 +43,22 @@ export default function AppShell() {
             >
               Transfer
             </NavLink>
+            <NavLink
+              to="/profile"
+              className={({ isActive }) =>
+                isActive ? "nav__link nav__link--active" : "nav__link"
+              }
+            >
+              Profile
+            </NavLink>
+            <NavLink
+              to="/support"
+              className={({ isActive }) =>
+                isActive ? "nav__link nav__link--active" : "nav__link"
+              }
+            >
+              Support
+            </NavLink>
           </nav>
           <div className="user">
             <span className="avatar" aria-hidden="true">
@@ -64,10 +80,7 @@ export default function AppShell() {
       </main>
 
       <footer className="footer">
-        <p>
-          Industry Bank is a fictional product built for a front-end demo. No real
-          accounts, money, or transfers are involved.
-        </p>
+        <p>© {new Date().getFullYear()} Industry Bank. All rights reserved.</p>
       </footer>
     </div>
   );

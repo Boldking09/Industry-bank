@@ -1,10 +1,14 @@
 export type AccountKind = "checking" | "savings" | "credit";
 
+export const BANK_ROUTING_NUMBER = "021000021";
+
 export interface Account {
   id: string;
   name: string;
   kind: AccountKind;
   mask: string;
+  accountNumber: string;
+  routingNumber: string;
   balanceCents: number;
 }
 
@@ -42,20 +46,26 @@ export function createSeedState(): BankState {
         name: "Everyday Checking",
         kind: "checking",
         mask: "4821",
-        balanceCents: 1_248_055,
+        accountNumber: "1000004821",
+        routingNumber: BANK_ROUTING_NUMBER,
+        balanceCents: 90_000_000,
       },
       {
         id: "acct-savings",
         name: "High-Yield Savings",
         kind: "savings",
         mask: "9930",
-        balanceCents: 3_821_510,
+        accountNumber: "1000009930",
+        routingNumber: BANK_ROUTING_NUMBER,
+        balanceCents: 10_056_500,
       },
       {
         id: "acct-credit",
         name: "Industry Credit Card",
         kind: "credit",
         mask: "2214",
+        accountNumber: "1000002214",
+        routingNumber: BANK_ROUTING_NUMBER,
         balanceCents: -128_432,
       },
     ],

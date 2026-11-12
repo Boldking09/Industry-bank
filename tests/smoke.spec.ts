@@ -15,6 +15,9 @@ test("signs in, shows the dashboard, and completes a transfer", async ({ page })
   await expect(page.getByRole("heading", { name: "Send money" })).toBeVisible();
 
   await page.getByLabel("Recipient name").fill("Jordan Lee");
+  await page
+    .getByLabel("Recipient account number")
+    .fill(process.env.E2E_RECIPIENT_ACCOUNT_NUMBER ?? "1000000001");
   await page.getByLabel("Amount").fill("125.50");
   await page.getByRole("button", { name: "Review transfer" }).click();
 
