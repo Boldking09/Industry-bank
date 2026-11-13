@@ -75,7 +75,7 @@ export default function LoginPage() {
   }
 
   if (session) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={from} replace />;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

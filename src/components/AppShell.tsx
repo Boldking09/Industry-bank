@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { isSupportAdmin } from "../lib/support";
 import { useAuth } from "../state/AuthContext";
 import Brand from "./Brand";
 
@@ -59,6 +60,16 @@ export default function AppShell() {
             >
               Support
             </NavLink>
+            {isSupportAdmin(session?.email) ? (
+              <NavLink
+                to="/admin"
+                className={({ isActive }) =>
+                  isActive ? "nav__link nav__link--active" : "nav__link"
+                }
+              >
+                Admin
+              </NavLink>
+            ) : null}
           </nav>
           <div className="user">
             <span className="avatar" aria-hidden="true">

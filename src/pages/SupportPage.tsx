@@ -1,17 +1,22 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import {
+  SUPPORT_CONNECT_NOTICE,
+  supportTime,
+  type SupportMessageRow,
+  type SupportSender,
+} from "../lib/support";
+import { supabase } from "../lib/supabase";
 import { useAuth } from "../state/AuthContext";
 
-type Role = "agent" | "user" | "system";
 type Step = 1 | 2 | 3 | 4 | 5;
-type Author = "Maya" | "David";
+type ChatSender = SupportSender | "system";
 
 interface ChatMessage {
-  id: number;
-  role: Role;
+  id: string;
+  sender: ChatSender;
   text: string;
   time: string;
-  author?: Author;
 }
 
 interface TurnResult {
@@ -29,9 +34,6 @@ const QUICK_REPLIES = [
 const HUMAN_REQUEST =
   /(speak|talk|connect)\b.*\b(human|person|specialist|agent)\b|\b(human|specialist)\b/i;
 
-const DAVID_INTRO =
-  "Hi, I'm David. I've reviewed the details you provided. I can see the issue with your account. Let me help you resolve this right now.";
-
 function timeNow(): string {
   return new Date().toLocaleTimeString([], {
     hour: "numeric",
@@ -39,19 +41,25 @@ function timeNow(): string {
   });
 }
 
-function respondTo(
-  input: string,
-  step: Step,
-  specialistConnected: boolean,
-): TurnResult {
-  if (specialistConnected) {
-    return {
-      reply:
-        "Thanks for that — I've added it to your case notes. I can see your account details on my end and I'll keep working on this. Is there anything else you'd like me to check?",
-      nextStep: 5,
-    };
-  }
+function toChatMessage(row: SupportMessageRow): ChatMessage {
+  return {
+    id: row.id,
+    sender: row.sender,
+    text: row.message,
+    time: supportTime(row.created_at),
+  };
+}
 
+function welcomeMessage(firstName: string): ChatMessage {
+  return {
+    id: "local-welcome",
+    sender: "ai",
+    text: `Hi ${firstName}, I'm Maya from Industry Bank support. I'm here to help with pending transfers, failed payments, and account questions. How can I help today?`,
+    time: timeNow(),
+  };
+}
+
+function respondTo(input: string, step: Step): TurnResult {
   if (HUMAN_REQUEST.test(input)) {
     return {
       reply:
@@ -131,25 +139,18 @@ export default function SupportPage() {
   const { session } = useAuth();
   const firstName = session?.name.split(" ")[0] ?? "there";
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [
-    {
-      id: 1,
-      role: "agent",
-      author: "Maya",
-      text: `Hi ${firstName}, I'm Maya from Industry Bank support. I'm here to help with pending transfers, failed payments, and account questions. How can I help today?`,
-      time: timeNow(),
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [typing, setTyping] = useState(false);
   const [step, setStep] = useState<Step>(1);
   const [canEscalate, setCanEscalate] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const [specialistConnected, setSpecialistConnected] = useState(false);
+  const [isHumanConnected, setIsHumanConnected] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(Boolean(supabase && session));
+  const [chatError, setChatError] = useState("");
 
-  const nextId = useRef(2);
+  const localId = useRef(0);
+  const humanConnectedRef = useRef(false);
   const replyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const specialistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const historyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -158,60 +159,212 @@ export default function SupportPage() {
       return;
     }
     history.scrollTo({ top: history.scrollHeight, behavior: "smooth" });
-  }, [messages, typing, connecting]);
+  }, [messages, typing, historyLoading]);
 
   useEffect(() => {
     return () => {
       if (replyTimer.current) {
         clearTimeout(replyTimer.current);
       }
-      if (specialistTimer.current) {
-        clearTimeout(specialistTimer.current);
-      }
     };
   }, []);
 
-  const agentName = specialistConnected
-    ? "David - Senior Specialist"
-    : "Maya - Live Agent";
-  const agentInitial = specialistConnected ? "D" : "M";
+  useEffect(() => {
+    let active = true;
 
-  function sendMessage(rawText?: string) {
-    const text = (rawText ?? draft).trim();
-    if (!text || typing || connecting) {
+    if (!supabase || !session) {
+      setMessages([welcomeMessage(firstName)]);
+      setHistoryLoading(false);
       return;
     }
 
-    const result = respondTo(text, step, specialistConnected);
-    const userMessage: ChatMessage = {
-      id: nextId.current++,
-      role: "user",
-      text,
-      time: timeNow(),
+    setHistoryLoading(true);
+
+    supabase
+      .from("support_messages")
+      .select("id,user_id,sender,message,created_at")
+      .eq("user_id", session.id)
+      .order("created_at", { ascending: true })
+      .then(({ data, error }) => {
+        if (!active) {
+          return;
+        }
+
+        if (error) {
+          setChatError(
+            "We couldn't load your saved conversation. Messages you send may not reach a specialist.",
+          );
+          setMessages([welcomeMessage(firstName)]);
+          setHistoryLoading(false);
+          return;
+        }
+
+        const rows = (data ?? []) as SupportMessageRow[];
+
+        if (rows.length === 0) {
+          setMessages([welcomeMessage(firstName)]);
+        } else {
+          setMessages(rows.map(toChatMessage));
+          setStep(5);
+          setCanEscalate(true);
+
+          const hasHuman = rows.some(
+            (row) =>
+              row.sender === "human" || row.message === SUPPORT_CONNECT_NOTICE,
+          );
+
+          if (hasHuman) {
+            humanConnectedRef.current = true;
+            setIsHumanConnected(true);
+            setCanEscalate(false);
+          }
+        }
+
+        setHistoryLoading(false);
+      });
+
+    return () => {
+      active = false;
     };
-    setMessages((previous) => [...previous, userMessage]);
+  }, [firstName, session]);
+
+  useEffect(() => {
+    const client = supabase;
+    if (!client || !session) {
+      return;
+    }
+
+    const channel = client
+      .channel(`support:${session.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "support_messages",
+          filter: `user_id=eq.${session.id}`,
+        },
+        (payload) => {
+          const row = payload.new as SupportMessageRow;
+
+          setMessages((previous) =>
+            previous.some((message) => message.id === row.id)
+              ? previous
+              : [...previous, toChatMessage(row)],
+          );
+
+          if (
+            row.sender === "human" ||
+            row.message === SUPPORT_CONNECT_NOTICE
+          ) {
+            humanConnectedRef.current = true;
+            setIsHumanConnected(true);
+            setCanEscalate(false);
+            setStep(5);
+            setTyping(false);
+
+            if (replyTimer.current) {
+              clearTimeout(replyTimer.current);
+              replyTimer.current = null;
+            }
+          }
+        },
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          setChatError(
+            "Live updates are unavailable right now. Refresh the page to reconnect.",
+          );
+        }
+      });
+
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }, [session]);
+
+  function pushLocalMessage(sender: ChatSender, text: string): string {
+    const id = `local-${Date.now()}-${localId.current++}`;
+    setMessages((previous) => [
+      ...previous,
+      { id, sender, text, time: timeNow() },
+    ]);
+    return id;
+  }
+
+  async function persistMessage(
+    sender: SupportSender,
+    text: string,
+    pendingId: string,
+  ) {
+    const client = supabase;
+    const userId = session?.id;
+
+    if (!client || !userId) {
+      return;
+    }
+
+    const { data, error } = await client
+      .from("support_messages")
+      .insert({ user_id: userId, sender, message: text })
+      .select("id,user_id,sender,message,created_at")
+      .single();
+
+    if (error) {
+      setChatError(
+        "A message could not be saved. Check your connection and try again.",
+      );
+      return;
+    }
+
+    if (!data) {
+      return;
+    }
+
+    const saved = toChatMessage(data as SupportMessageRow);
+    setMessages((previous) => {
+      if (previous.some((message) => message.id === saved.id)) {
+        return previous.filter((message) => message.id !== pendingId);
+      }
+      return previous.map((message) =>
+        message.id === pendingId ? saved : message,
+      );
+    });
+  }
+
+  function sendMessage(rawText?: string) {
+    const text = (rawText ?? draft).trim();
+    if (!text || typing || historyLoading) {
+      return;
+    }
+
+    const pendingId = pushLocalMessage("user", text);
     setDraft("");
+    void persistMessage("user", text, pendingId);
+
+    if (humanConnectedRef.current) {
+      return;
+    }
+
+    const result = respondTo(text, step);
     setTyping(true);
 
-    const author: Author = specialistConnected ? "David" : "Maya";
     replyTimer.current = setTimeout(
       () => {
-        setMessages((previous) => [
-          ...previous,
-          {
-            id: nextId.current++,
-            role: "agent",
-            author,
-            text: result.reply,
-            time: timeNow(),
-          },
-        ]);
+        replyTimer.current = null;
+
+        if (humanConnectedRef.current) {
+          setTyping(false);
+          return;
+        }
+
+        const aiId = pushLocalMessage("ai", result.reply);
+        void persistMessage("ai", result.reply, aiId);
         setStep(result.nextStep);
         if (result.escalateReady) {
           setCanEscalate(true);
         }
         setTyping(false);
-        replyTimer.current = null;
       },
       1200 + Math.random() * 500,
     );
@@ -223,39 +376,38 @@ export default function SupportPage() {
   }
 
   function handleConnect() {
-    if (!canEscalate || connecting || specialistConnected) {
+    if (!canEscalate || humanConnectedRef.current) {
       return;
     }
 
-    setConnecting(true);
-    setMessages((previous) => [
-      ...previous,
-      {
-        id: nextId.current++,
-        role: "system",
-        text: "Connecting you to a live specialist...",
-        time: timeNow(),
-      },
-    ]);
+    humanConnectedRef.current = true;
+    setIsHumanConnected(true);
+    setCanEscalate(false);
+    setStep(5);
+    setTyping(false);
 
-    specialistTimer.current = setTimeout(() => {
-      setSpecialistConnected(true);
-      setConnecting(false);
-      setMessages((previous) => [
-        ...previous,
-        {
-          id: nextId.current++,
-          role: "agent",
-          author: "David",
-          text: DAVID_INTRO,
-          time: timeNow(),
-        },
-      ]);
-      specialistTimer.current = null;
-    }, 2000);
+    if (replyTimer.current) {
+      clearTimeout(replyTimer.current);
+      replyTimer.current = null;
+    }
+
+    if (!supabase || !session) {
+      pushLocalMessage(
+        "system",
+        "Live specialist chat is unavailable in local demo mode. Connect Supabase to reach the support team.",
+      );
+      return;
+    }
+
+    const pendingId = pushLocalMessage("ai", SUPPORT_CONNECT_NOTICE);
+    void persistMessage("ai", SUPPORT_CONNECT_NOTICE, pendingId);
   }
 
-  const inputDisabled = typing || connecting;
+  const inputDisabled = typing || historyLoading;
+  const agentName = isHumanConnected
+    ? "Live Specialist"
+    : "Maya - Support Assistant";
+  const agentInitial = isHumanConnected ? "S" : "M";
 
   return (
     <div className="support">
@@ -264,8 +416,8 @@ export default function SupportPage() {
           <p className="greeting">We're here to help</p>
           <h1 className="page__title">Live support</h1>
           <p className="page__sub">
-            Chat with a live Industry Bank agent about pending transfers,
-            payments, or your account.
+            Chat with our support assistant, then connect with a human
+            specialist whenever you need one.
           </p>
         </div>
         <Link to="/" className="btn btn--ghost">
@@ -282,14 +434,20 @@ export default function SupportPage() {
             <span className="support__name">{agentName}</span>
             <span className="support__status">
               <span className="support__dot" aria-hidden="true" />
-              {connecting
-                ? "Connecting you to a specialist…"
-                : specialistConnected
-                  ? "Online · Senior specialist"
-                  : "Online · typically replies in under a minute"}
+              {historyLoading
+                ? "Loading your conversation…"
+                : isHumanConnected
+                  ? "Connected · Human specialist"
+                  : "Online · AI assistant"}
             </span>
           </div>
         </div>
+
+        {chatError ? (
+          <p className="support__error" role="alert">
+            {chatError}
+          </p>
+        ) : null}
 
         <div
           className="support__history"
@@ -297,46 +455,47 @@ export default function SupportPage() {
           role="log"
           aria-live="polite"
         >
+          {historyLoading ? (
+            <p className="support__loading">Loading conversation…</p>
+          ) : null}
+
           {messages.map((message) => {
-            if (message.role === "system") {
+            if (message.sender === "system") {
               return (
-                <div
-                  key={message.id}
-                  style={{ display: "flex", justifyContent: "center" }}
-                >
-                  <span
-                    style={{
-                      padding: "7px 13px",
-                      border: "1px solid var(--line)",
-                      borderRadius: "999px",
-                      background: "#eef4fb",
-                      color: "var(--muted)",
-                      fontSize: "12.5px",
-                      fontWeight: 600,
-                      textAlign: "center",
-                    }}
-                  >
-                    {message.text}
-                  </span>
+                <div key={message.id} className="support__notice-row">
+                  <span className="support__notice">{message.text}</span>
                 </div>
               );
             }
 
-            const bubbleAuthor = message.author ?? (specialistConnected ? "David" : "Maya");
-            const bubbleInitial = bubbleAuthor === "David" ? "D" : "M";
+            const isUser = message.sender === "user";
+            const rowRole = isUser ? "user" : "agent";
+            const bubbleRole = isUser ? "user" : "agent";
+            const initial = message.sender === "human" ? "S" : "M";
 
             return (
               <div
                 key={message.id}
-                className={`support__row support__row--${message.role}`}
+                className={`support__row support__row--${rowRole}`}
               >
-                {message.role === "agent" ? (
-                  <span className="support__bubble-avatar" aria-hidden="true">
-                    {bubbleInitial}
+                {!isUser ? (
+                  <span
+                    className={`support__bubble-avatar ${
+                      message.sender === "human"
+                        ? "support__bubble-avatar--human"
+                        : ""
+                    }`.trim()}
+                    aria-hidden="true"
+                  >
+                    {initial}
                   </span>
                 ) : null}
                 <div
-                  className={`support__bubble support__bubble--${message.role}`}
+                  className={`support__bubble support__bubble--${bubbleRole} ${
+                    message.sender === "human"
+                      ? "support__bubble--human"
+                      : ""
+                  }`.trim()}
                 >
                   <p className="support__text">{message.text}</p>
                   <span className="support__time">{message.time}</span>
@@ -362,7 +521,7 @@ export default function SupportPage() {
           ) : null}
         </div>
 
-        {canEscalate && !specialistConnected && !connecting ? (
+        {canEscalate && !isHumanConnected ? (
           <div className="support__quick">
             <button
               type="button"
@@ -374,7 +533,7 @@ export default function SupportPage() {
           </div>
         ) : null}
 
-        {messages.length === 1 ? (
+        {messages.length === 1 && !isHumanConnected && !historyLoading ? (
           <div className="support__quick">
             {QUICK_REPLIES.map((reply) => (
               <button
@@ -400,7 +559,11 @@ export default function SupportPage() {
             type="text"
             autoComplete="off"
             placeholder={
-              connecting ? "Connecting to a specialist…" : "Type your message…"
+              historyLoading
+                ? "Loading conversation…"
+                : isHumanConnected
+                  ? "Message your specialist…"
+                  : "Type your message…"
             }
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
